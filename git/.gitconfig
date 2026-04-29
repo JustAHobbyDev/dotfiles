@@ -1,0 +1,68 @@
+[user]
+    # TODO: replace placeholder signingkey before commits start failing.
+    name = Dan Schmidt
+    email = justahobbydev@proton.me
+    signingkey = ~/.ssh/id_ed25519_signing.pub
+
+[gpg]
+    format = ssh
+
+[gpg "ssh"]
+    # Populate ~/.config/git/allowed_signers with lines like:
+    #   you@example.com namespaces="git" ssh-ed25519 AAAA...
+    # so `git log --show-signature` can verify your own commits locally.
+    allowedSignersFile = ~/.config/git/allowed_signers
+
+[commit]
+    gpgsign = true
+
+[tag]
+    gpgsign = true
+
+[init]
+    defaultBranch = main
+
+[pull]
+    rebase = true
+
+[push]
+    autoSetupRemote = true
+
+[rebase]
+    autoStash = true
+
+[rerere]
+    enabled = true
+
+[diff]
+    algorithm = histogram
+
+[merge]
+    conflictStyle = zdiff3
+
+[fetch]
+    prune = true
+
+[column]
+    ui = auto
+
+[branch]
+    sort = -committerdate
+
+[color]
+    ui = auto
+
+[alias]
+    st = status
+    co = checkout
+    ci = commit
+    lg = log --graph --oneline --decorate --all
+
+# Credential helpers (preserved from `gh auth setup-git`).
+# Empty `helper =` clears any inherited helpers, then gh provides credentials.
+[credential "https://github.com"]
+    helper =
+    helper = !gh auth git-credential
+[credential "https://gist.github.com"]
+    helper =
+    helper = !gh auth git-credential
