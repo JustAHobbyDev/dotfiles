@@ -2,6 +2,20 @@
 
 Daniel's portable shell + tooling config, managed with [GNU Stow](https://www.gnu.org/software/stow/).
 
+## Quickstart
+
+```
+curl -LsSf https://raw.githubusercontent.com/JustAHobbyDev/dotfiles/main/setup.sh | bash
+```
+
+The one-liner runs the deterministic, machine-shaped work — apt prereqs (Debian/Ubuntu), oh-my-zsh + plugins, mise, uv, this repo cloned + stowed, `install.sh` binaries, gh apt repo. It then prompts for your git identity and saves it to `~/.config/git/config.local` (mode 600, intentionally outside this repo).
+
+When it finishes, it prints a short checklist of items that need user-specific input or password prompts: `gh auth login`, `chsh -s zsh`, and SSH signing-key generation + upload.
+
+The script is idempotent — re-running it on the same machine reports each phase as already-in-place. On non-apt systems (macOS, Fedora, Arch, …) the apt-only items move to the final checklist so the same one-liner still does what it can.
+
+Override the source via env vars: `DOTFILES_REPO=…` (a fork URL) or `DOTFILES_DIR=…` (a non-default install path).
+
 ## Layout
 
 ```
@@ -21,9 +35,9 @@ Daniel's portable shell + tooling config, managed with [GNU Stow](https://www.gn
 
 Each top-level dir is a **stow package**. Files inside mirror their target location relative to `$HOME`. Stow creates the symlinks; never write or edit configs directly in `~`.
 
-## Fresh-machine bootstrap
+## Manual procedure (alternative to Quickstart)
 
-Tested on Ubuntu 24.04. Should work on most Debian-family distros; adjust apt to your package manager elsewhere.
+If you'd rather run each step by hand than trust the one-liner. Tested on Ubuntu 24.04; should work on most Debian-family distros, adjust apt to your package manager elsewhere.
 
 1. **Base packages** (sudo):
    ```
