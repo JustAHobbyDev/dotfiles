@@ -1,8 +1,11 @@
 [user]
-    # TODO: replace placeholder signingkey before commits start failing.
-    name = Dan Schmidt
-    email = justahobbydev@proton.me
-    signingkey = ~/.ssh/id_ed25519_signing.pub
+    # Identity (name, email, signingkey) lives in ~/.config/git/config.local,
+    # written by setup.sh on first install. That file is intentionally not in
+    # this repo. With commit.gpgsign = true and no signingkey set, commits
+    # will fail loudly until config.local is in place — that's intentional.
+
+[include]
+    path = ~/.config/git/config.local
 
 [gpg]
     format = ssh
