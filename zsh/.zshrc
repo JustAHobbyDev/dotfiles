@@ -86,3 +86,26 @@ bw-logout() {
     rm -f "$HOME/.config/bw/session.env"
     echo "bw session revoked, env file removed, BW_SESSION unset"
 }
+
+# bws-run: fetch the BWS access token from the bw vault (item name
+# `bws-access-token`), scope it to a single `bws run` invocation, and exec
+# the given command with project secrets injected as env vars.
+# Requires bw to be unlocked (BW_SESSION set — run `bw-login` first).
+bws-run() {
+    if [ -z "$1" ]; then
+        echo "usage: bws-run <project-id> <command...>" >&2
+        return 1
+    fi
+
+    if [ -z "$BW_SESSION" ]; then
+        echo "BW_SESSION not set. Run: export BW_SESSION=\$(bw unlock --raw)" >&2
+        return 1
+    fi
+
+    local project_id="$1"
+    shift
+
+    BWS_ACCESS_TOKEN="$(bw get password 'bws-access-token')" \
+        bws run --project-id "$project_id" -- "$@"
+}
+

@@ -126,6 +126,68 @@ install_bw() {
     echo "bw installed to $target ($("$target" --version))"
 }
 
+install_bws() {
+    local install_dir="$HOME/.local/bin"
+    local target="$install_dir/bws"
+    local sevenz="$install_dir/7zz"
+
+    if [ -x "$target" ]; then
+        local current_version
+        current_version=$("$target" --version 2>/dev/null || echo "unknown")
+        echo "bws already installed: $current_version"
+        return 0
+    fi
+
+    if [ ! -x "$sevenz" ]; then
+        echo "ERROR: $sevenz not found — run install_7zz first" >&2
+        return 1
+    fi
+
+    mkdir -p "$install_dir"
+
+    # Resolve latest bws release from the bitwarden/sdk-sm monorepo.
+    # That repo tags multiple products (rust-v*, python-v*, bws-v*, dotnet-v*);
+    # filter for bws-v* specifically.
+    local latest_tag
+    latest_tag=$(curl -fsSL "https://api.github.com/repos/bitwarden/sdk-sm/releases" \
+        | grep -oE '"tag_name": "bws-v[0-9.]+"' \
+        | head -1 \
+        | sed -E 's/.*"bws-v([0-9.]+)"/\1/')
+
+    if [ -z "$latest_tag" ]; then
+        echo "ERROR: could not resolve latest bws version" >&2
+        return 1
+    fi
+
+    echo "Installing bws $latest_tag"
+
+    # Detect architecture (Rust target triples)
+    local arch
+    case "$(uname -m)" in
+        x86_64)   arch="x86_64-unknown-linux-gnu" ;;
+        aarch64)  arch="aarch64-unknown-linux-gnu" ;;
+        *)        echo "ERROR: unsupported architecture $(uname -m)" >&2; return 1 ;;
+    esac
+
+    local url="https://github.com/bitwarden/sdk-sm/releases/download/bws-v${latest_tag}/bws-${arch}-${latest_tag}.zip"
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    trap "rm -rf '$tmpdir'" RETURN
+
+    if ! curl -fsSL -o "$tmpdir/bws.zip" "$url"; then
+        echo "ERROR: download failed from $url" >&2
+        return 1
+    fi
+
+    if ! "$sevenz" x -bso0 -bsp0 -y -o"$tmpdir" "$tmpdir/bws.zip" >/dev/null; then
+        echo "ERROR: 7zz extraction failed" >&2
+        return 1
+    fi
+
+    install -m 0755 "$tmpdir/bws" "$target"
+    echo "bws installed to $target ($("$target" --version))"
+}
+
 install_unzip_guard() {
     local install_dir="$HOME/.local/bin"
     local target="$install_dir/unzip"
@@ -182,6 +244,7 @@ main() {
 
     install_7zz
     install_bw
+    install_bws
     install_unzip_guard
 }
 
