@@ -123,3 +123,5 @@ bw-lock() {
   unset BW_SESSION
 }
 
+alias clip='iconv -f UTF-8 -t UTF-16LE | clip.exe'
+
