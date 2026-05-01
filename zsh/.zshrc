@@ -16,6 +16,9 @@ export PATH="$HOME/.local/bin:$PATH"
 # mise — toolchain manager (must come after PATH)
 eval "$(mise activate zsh)"
 
+# zoxide — smarter `cd`; provides `z` / `zi`. Guard so fresh boxes pre-mise-install don't error.
+command -v zoxide >/dev/null && eval "$(zoxide init zsh)"
+
 # fd-find shim: Debian/Ubuntu install the binary as `fdfind`.
 # On other distros where it's already `fd`, this no-ops.
 command -v fdfind >/dev/null && alias fd=fdfind
@@ -107,5 +110,16 @@ bws-run() {
 
     BWS_ACCESS_TOKEN="$(bw get password 'bws-access-token')" \
         bws run --project-id "$project_id" -- "$@"
+}
+
+# Unlock vault and export session token for current shell
+bw-unlock() {
+  export BW_SESSION="$(bw unlock --raw)"
+}
+
+# Lock vault and clear session token
+bw-lock() {
+  bw lock >/dev/null 2>&1
+  unset BW_SESSION
 }
 
