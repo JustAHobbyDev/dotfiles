@@ -39,7 +39,7 @@ detect_platform() {
 
 install_apt_prereqs() {
     step "Installing base packages"
-    local pkgs="zsh stow tmux ripgrep curl git build-essential jq fd-find pandoc ffmpeg xz-utils keychain"
+    local pkgs="zsh stow tmux ripgrep curl git build-essential jq fd-find pandoc ffmpeg xz-utils keychain pinentry-curses"
     if [ "$HAS_APT" -ne 1 ]; then
         NEXT_STEPS+=("Install via your distro's package manager: $pkgs")
         skip "no apt — added to next-steps"

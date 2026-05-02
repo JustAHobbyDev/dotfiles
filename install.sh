@@ -188,6 +188,62 @@ install_bws() {
     echo "bws installed to $target ($("$target" --version))"
 }
 
+install_rbw() {
+    local install_dir="$HOME/.local/bin"
+    local target="$install_dir/rbw"
+
+    if [ -x "$target" ]; then
+        local current_version
+        current_version=$("$target" --version 2>/dev/null || echo "unknown")
+        echo "rbw already installed: $current_version"
+        return 0
+    fi
+
+    # Upstream ships linux_amd64 only. On other archs, suggest cargo install.
+    case "$(uname -m)" in
+        x86_64) ;;
+        *) echo "ERROR: rbw upstream ships linux_amd64 only; no binary for $(uname -m)" >&2
+           echo "       fallback: cargo install rbw" >&2
+           return 1 ;;
+    esac
+
+    mkdir -p "$install_dir"
+
+    # Tags are bare versions ("1.15.0"), no `v` prefix.
+    local latest_tag
+    latest_tag=$(curl -fsSL "https://api.github.com/repos/doy/rbw/releases/latest" \
+        | grep -oE '"tag_name": "[0-9.]+"' \
+        | head -1 \
+        | sed -E 's/.*"([0-9.]+)"/\1/')
+
+    if [ -z "$latest_tag" ]; then
+        echo "ERROR: could not resolve latest rbw version" >&2
+        return 1
+    fi
+
+    echo "Installing rbw $latest_tag"
+
+    local url="https://github.com/doy/rbw/releases/download/${latest_tag}/rbw_${latest_tag}_linux_amd64.tar.gz"
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    trap "rm -rf '$tmpdir'" RETURN
+
+    if ! curl -fsSL -o "$tmpdir/rbw.tar.gz" "$url"; then
+        echo "ERROR: download failed from $url" >&2
+        return 1
+    fi
+
+    # Tarball is flat: rbw, rbw-agent, completion/
+    if ! tar -xzf "$tmpdir/rbw.tar.gz" -C "$tmpdir"; then
+        echo "ERROR: tar extraction failed" >&2
+        return 1
+    fi
+
+    install -m 0755 "$tmpdir/rbw"       "$target"
+    install -m 0755 "$tmpdir/rbw-agent" "$install_dir/rbw-agent"
+    echo "rbw installed to $target ($("$target" --version))"
+}
+
 install_unzip_guard() {
     local install_dir="$HOME/.local/bin"
     local target="$install_dir/unzip"
@@ -245,6 +301,7 @@ main() {
     install_7zz
     install_bw
     install_bws
+    install_rbw
     install_unzip_guard
 }
 

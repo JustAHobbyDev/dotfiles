@@ -113,7 +113,7 @@ Add `<tool>` to `bootstrap.sh`'s stow list so future fresh-machine bootstraps in
 - Python is managed by `uv`, not mise — by intentional preference.
 - `fd` is aliased to `fdfind` in `.zshrc` (Debian renames the binary). On distros that ship `fd` directly, the alias no-ops.
 - mise uses *activate* mode (not shims) — `eval "$(mise activate zsh)"` adds active versions' `bin/` directly to PATH.
-- `install.sh` covers binaries that don't have a clean apt/mise/uv path (currently 7zip's `7zz`, Bitwarden's `bw`, and Bitwarden Secrets Manager's `bws`). It pulls each from the upstream GitHub releases into `~/.local/bin`. It's idempotent — re-runs skip already-installed tools. Source it (`source install.sh`) to get the installer functions without running them.
+- `install.sh` covers binaries that don't have a clean apt/mise/uv path (currently 7zip's `7zz`, Bitwarden's `bw`, Bitwarden Secrets Manager's `bws`, and `rbw` — a faster Rust Bitwarden client). It pulls each from the upstream GitHub releases into `~/.local/bin`. It's idempotent — re-runs skip already-installed tools. Source it (`source install.sh`) to get the installer functions without running them.
 - `7zz` is installed first because `bw`'s release ships as a `.zip`, which `7zz` extracts. The 7zip tarball itself is `.tar.xz` and bootstraps via `tar -xJf` (no 7z required).
 - `install.sh` also drops an `unzip` guard script at `~/.local/bin/unzip` when no real unzip is on PATH. It prints a redirect to `7zz` and exits non-zero so scripts and agents that reach for `unzip` notice and adapt. (`~/dotfiles/zsh/.zshrc` has a matching alias for interactive zsh — together they cover both interactive and non-interactive callers.)
 

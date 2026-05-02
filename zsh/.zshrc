@@ -82,34 +82,29 @@ bw-login() {
     echo "bw session persisted to $dir/session.env (mode 600); BW_SESSION exported"
 }
 
-# bw-logout: revoke server-side, remove env file, unset env var
+# bw-logout: revoke server-side, remove env file, unset env vars
 bw-logout() {
     bw logout 2>/dev/null || true
-    unset BW_SESSION
+    unset BW_SESSION BWS_ACCESS_TOKEN
     rm -f "$HOME/.config/bw/session.env"
-    echo "bw session revoked, env file removed, BW_SESSION unset"
+    echo "bw session revoked, env file removed, BW_SESSION/BWS_ACCESS_TOKEN unset"
 }
 
-# bws-run: fetch the BWS access token from the bw vault (item name
-# `bws-access-token`), scope it to a single `bws run` invocation, and exec
-# the given command with project secrets injected as env vars.
-# Requires bw to be unlocked (BW_SESSION set — run `bw-login` first).
-bws-run() {
-    if [ -z "$1" ]; then
-        echo "usage: bws-run <project-id> <command...>" >&2
-        return 1
-    fi
-
+# bws: wrap the bws binary so the BWS_ACCESS_TOKEN comes from the bw vault
+# (item name `bws-access-token`) instead of being persisted to disk. The
+# token is fetched once per shell, cached in the env, and cleared by
+# bw-lock / bw-logout. Hitting the bw CLI on every call is too slow.
+# Requires bw to be unlocked (BW_SESSION set — run `bw-unlock` first).
+bws() {
     if [ -z "$BW_SESSION" ]; then
-        echo "BW_SESSION not set. Run: export BW_SESSION=\$(bw unlock --raw)" >&2
+        echo "BW_SESSION not set. Run: bw-unlock" >&2
         return 1
     fi
-
-    local project_id="$1"
-    shift
-
-    BWS_ACCESS_TOKEN="$(bw get password 'bws-access-token')" \
-        bws run --project-id "$project_id" -- "$@"
+    if [ -z "${BWS_ACCESS_TOKEN:-}" ]; then
+        BWS_ACCESS_TOKEN="$(bw get password 'bws-access-token')" || return 1
+        export BWS_ACCESS_TOKEN
+    fi
+    command bws "$@"
 }
 
 # Unlock vault and export session token for current shell
@@ -117,10 +112,49 @@ bw-unlock() {
   export BW_SESSION="$(bw unlock --raw)"
 }
 
-# Lock vault and clear session token
+# Lock vault and clear session token (also clears any cached BWS_ACCESS_TOKEN)
 bw-lock() {
   bw lock >/dev/null 2>&1
-  unset BW_SESSION
+  unset BW_SESSION BWS_ACCESS_TOKEN
+}
+
+# rbw-setup: configure rbw (faster Rust Bitwarden client with an unlock agent).
+# Idempotent. Pulls the email from `bw status` if bw is already logged in;
+# otherwise prompts. Picks the most reliable pinentry available for headless
+# / tmux contexts. Stops short of `rbw login` / `rbw unlock` — those are
+# interactive and worth running by hand once.
+rbw-setup() {
+    command -v rbw >/dev/null || { echo "rbw not on PATH (run install.sh)" >&2; return 1; }
+    command -v jq  >/dev/null || { echo "jq not on PATH" >&2; return 1; }
+
+    local email
+    if command -v bw >/dev/null; then
+        email=$(bw status 2>/dev/null | jq -r '.userEmail // empty')
+    fi
+    if [ -z "$email" ]; then
+        read -rp "Bitwarden email: " email
+    fi
+    [ -n "$email" ] || { echo "no email provided" >&2; return 1; }
+
+    rbw config set email "$email"
+
+    # Prefer curses (works over SSH/tmux); fall back to tty.
+    if command -v pinentry-curses >/dev/null; then
+        rbw config set pinentry pinentry-curses
+    elif command -v pinentry-tty >/dev/null; then
+        rbw config set pinentry pinentry-tty
+    else
+        echo "WARN: no pinentry-curses/-tty on PATH" >&2
+        echo "      sudo apt install pinentry-curses   # or pinentry-tty" >&2
+    fi
+
+    cat <<'NEXT'
+rbw configured. To finish setup interactively (one-time):
+  rbw login    # auth with Bitwarden, prompts for password
+  rbw unlock   # starts rbw-agent; subsequent reads are near-instant
+Then verify:
+  rbw get 'bws-access-token' >/dev/null && echo OK
+NEXT
 }
 
 alias clip='iconv -f UTF-8 -t UTF-16LE | clip.exe'
