@@ -16,9 +16,6 @@ export PATH="$HOME/.local/bin:$PATH"
 # mise — toolchain manager (must come after PATH)
 eval "$(mise activate zsh)"
 
-# zoxide — smarter `cd`; provides `z` / `zi`. Guard so fresh boxes pre-mise-install don't error.
-command -v zoxide >/dev/null && eval "$(zoxide init zsh)"
-
 # fd-find shim: Debian/Ubuntu install the binary as `fdfind`.
 # On other distros where it's already `fd`, this no-ops.
 command -v fdfind >/dev/null && alias fd=fdfind
@@ -159,3 +156,7 @@ NEXT
 
 alias clip='iconv -f UTF-8 -t UTF-16LE | clip.exe'
 
+# zoxide — provides `z` / `zi`. Static init script in this same dir
+# (avoids the per-shell `eval "$(zoxide init zsh)"` cost). Resolved via
+# .zshrc's own location so it works regardless of PWD at shell start.
+[ -f "${0:A:h}/zoxide.sh" ] && source "${0:A:h}/zoxide.sh"
