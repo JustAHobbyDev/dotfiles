@@ -156,7 +156,7 @@ NEXT
 
 alias clip='iconv -f UTF-8 -t UTF-16LE | clip.exe'
 
-# zoxide — provides `z` / `zi`. Static init script in this same dir
-# (avoids the per-shell `eval "$(zoxide init zsh)"` cost). Resolved via
-# .zshrc's own location so it works regardless of PWD at shell start.
-[ -f "${0:A:h}/zoxide.sh" ] && source "${0:A:h}/zoxide.sh"
+# zoxide — provides `z` / `zi`. Static init script (a snapshot of
+# `zoxide init zsh`) lives outside the stow tree to keep $HOME tidy.
+# Resolved via .zshrc's own location so it works regardless of PWD.
+[ -f "${0:A:h:h}/lib/zoxide.sh" ] && source "${0:A:h:h}/lib/zoxide.sh"
