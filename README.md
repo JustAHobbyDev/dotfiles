@@ -115,6 +115,80 @@ If you'd rather run each step by hand than trust the one-liner. Tested on Ubuntu
    command -v mise nvim uv just fd jq gh
    ```
 
+## Migration day runbook (Aurora Linux)
+
+End-to-end sequence for moving the dev environment to a fresh Aurora Linux install. Assumes you've prepared two Bitwarden Sends from the previous machine:
+
+- `migration.tar.gz` — `~/.ssh/` keys + config, `~/.config/git/config.local`, `~/.config/git/allowed_signers`, `~/.pem/kalshi-*.pem`
+- `project-envs.tar.gz` — gitignored `.env` files (currently `~/game_asset_generator/.env`, `~/kalshi/kalshi-temp-edge/.env`)
+
+### 1. Aurora prereqs (run once, reboot afterward)
+
+```
+ujust devmode      # add developer tools layer
+ujust dx-group     # add yourself to docker/libvirt groups
+ujust aurora-cli   # curated brew bundle: rg, fd, gh, zoxide, …
+sudo systemctl reboot
+```
+
+### 2. Restore SSH + identity *before* `setup.sh`
+
+So that `setup.sh`'s identity-prompt phase finds `~/.config/git/config.local` and skips the prompt, and so that keychain has a key to load on the first interactive shell.
+
+```
+gpg -d migration.tar.gz.gpg | tar -xzf - -C ~     # drop `gpg -d` if no second-layer passphrase
+chmod 700 ~/.ssh ~/.config/git ~/.pem
+chmod 600 ~/.ssh/id_ed25519_signing ~/.ssh/hetzner_kalshi_temp_edge \
+          ~/.config/git/config.local ~/.config/git/allowed_signers \
+          ~/.pem/kalshi-private-key.pem
+chmod 644 ~/.ssh/*.pub ~/.pem/kalshi-public-key.pem
+```
+
+### 3. Bootstrap dotfiles
+
+```
+curl -LsSf https://raw.githubusercontent.com/JustAHobbyDev/dotfiles/main/setup.sh | bash
+```
+
+### 4. Re-authenticate vault and platform
+
+```
+bw login                          # master password from your password manager
+bw-unlock                         # exports BW_SESSION
+rbw-setup && rbw login && rbw unlock
+gh auth login
+```
+
+### 5. Re-clone project repos, then drop their .env files in
+
+Clone first — `git clone` refuses a non-empty target — then extract.
+
+```
+git clone https://github.com/JustAHobbyDev/game_asset_generator   ~/game_asset_generator
+git clone https://github.com/JustAHobbyDev/kalshi-temp-edge       ~/kalshi/kalshi-temp-edge
+git clone https://github.com/JustAHobbyDev/kalshi-15m-btc-pipeline ~/kalshi/kalshi-15m-btc-pipeline
+
+gpg -d project-envs.tar.gz.gpg | tar -xzf - -C ~
+chmod 600 ~/game_asset_generator/.env ~/kalshi/kalshi-temp-edge/.env
+
+# kalshi-15m-btc-pipeline has no transferred .env — populate from its .env.example
+```
+
+### 6. Verify
+
+```
+exec zsh
+command -v rg fd gh zoxide tmux stow jq mise uv      # tools
+git config --get user.email                          # identity
+ssh-add -L                                           # keychain has the signing key
+bw status                                            # "unlocked"
+( cd ~/dotfiles && git log --show-signature -1 )     # signed-commit verification works
+```
+
+### 7. Revoke the Bitwarden Sends
+
+Once everything's verified, revoke both Sends from the source machine (or from web vault) so the links can't be replayed.
+
 ## Adding a new tool's config
 
 ```
