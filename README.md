@@ -8,13 +8,25 @@ Daniel's portable shell + tooling config, managed with [GNU Stow](https://www.gn
 curl -LsSf https://raw.githubusercontent.com/JustAHobbyDev/dotfiles/main/setup.sh | bash
 ```
 
-The one-liner runs the deterministic, machine-shaped work — apt prereqs (Debian/Ubuntu), oh-my-zsh + plugins, mise, uv, this repo cloned + stowed, `install.sh` binaries, gh apt repo. It then prompts for your git identity and saves it to `~/.config/git/config.local` (mode 600, intentionally outside this repo).
+The one-liner runs the deterministic, machine-shaped work — system packages (apt on Debian/Ubuntu, brew on Aurora Linux), oh-my-zsh + plugins, mise, uv, this repo cloned + stowed, `install.sh` binaries, gh apt repo. It then prompts for your git identity and saves it to `~/.config/git/config.local` (mode 600, intentionally outside this repo).
 
 When it finishes, it prints a short checklist of items that need user-specific input or password prompts: `gh auth login`, `chsh -s zsh`, and SSH signing-key generation + upload.
 
-The script is idempotent — re-running it on the same machine reports each phase as already-in-place. On non-apt systems (macOS, Fedora, Arch, …) the apt-only items move to the final checklist so the same one-liner still does what it can.
+The script is idempotent — re-running it on the same machine reports each phase as already-in-place. On systems with neither apt nor brew (e.g. minimal Fedora/Arch installs without Homebrew), the system-package install moves to the final checklist so the same one-liner still does what it can.
 
 Override the source via env vars: `DOTFILES_REPO=…` (a fork URL) or `DOTFILES_DIR=…` (a non-default install path).
+
+### Aurora Linux prereq
+
+Before the curl-pipe one-liner, run Aurora's curated CLI bundle so the bootstrap can rely on `rg`, `fd`, `gh`, `zoxide`, etc. being on PATH:
+
+```
+ujust devmode      # add developer tools layer
+ujust dx-group     # add yourself to docker/libvirt groups
+ujust aurora-cli   # curated brew bundle: rg, fd, gh, zoxide, …
+```
+
+Reboot or log out/in for the group changes to apply, then run `setup.sh`.
 
 ## Layout
 
@@ -37,14 +49,20 @@ Each top-level dir is a **stow package**. Files inside mirror their target locat
 
 ## Manual procedure (alternative to Quickstart)
 
-If you'd rather run each step by hand than trust the one-liner. Tested on Ubuntu 24.04; should work on most Debian-family distros, adjust apt to your package manager elsewhere.
+If you'd rather run each step by hand than trust the one-liner. Tested on Ubuntu 24.04 and Aurora Linux; should work on most Debian-family distros and any system with Homebrew.
 
-1. **Base packages** (sudo):
-   ```
-   sudo apt update
-   sudo apt install -y zsh stow tmux ripgrep curl git build-essential \
-       jq fd-find pandoc ffmpeg
-   ```
+1. **Base packages**:
+   - Debian/Ubuntu (apt):
+     ```
+     sudo apt update
+     sudo apt install -y zsh stow tmux ripgrep curl git build-essential \
+         jq fd-find pandoc ffmpeg xz-utils keychain pinentry-curses
+     ```
+   - Aurora Linux (after `ujust aurora-cli` — see Quickstart prereq):
+     ```
+     brew install stow tmux jq pandoc ffmpeg keychain xz pinentry
+     ```
+     `aurora-cli` already installed `rg`, `fd`, `gh`, `zoxide`; the base image ships `zsh`, `curl`, `git`, `gcc`/`make`.
 
 2. **oh-my-zsh** (unattended; doesn't change shell or replace `.zshrc`):
    ```
@@ -119,12 +137,12 @@ Add `<tool>` to `bootstrap.sh`'s stow list so future fresh-machine bootstraps in
 
 ## Roadmap: portability of apt-installed tools
 
-The fresh-machine bootstrap currently leans on `apt` for several tools (`tmux`, `ripgrep`, `jq`, `fd-find`, `pandoc`, `ffmpeg`, `gh`, `keychain`, plus base packages like `zsh`, `stow`, `curl`, `git`, `build-essential`, `xz-utils`). That's pragmatic on Debian/Ubuntu but ties the repo to one package manager.
+The bootstrap now dispatches on `apt` (Debian/Ubuntu) or `brew` (Aurora Linux), which removes the single-package-manager assumption — any host with one of those gets a clean install. Long-term direction is still to shrink even the system-package list and lean more on distro-agnostic sources.
 
-Eventual goal: move user-space tools off apt and onto distro-agnostic sources, so the same dotfiles work cleanly on any Linux (and the Linux desktop migration is friction-free). Likely paths, in rough order of suitability:
+Likely paths, in rough order of suitability:
 
-1. **`mise`** — already used for `node`, `neovim`, `just`. It has plugins for `ripgrep`, `fd`, `jq`, `gh`, `pandoc`, `ffmpeg` and many more; pinning everything in `~/dotfiles/mise/.config/mise/config.toml` makes the toolchain reproducible cross-distro.
+1. **`mise`** — already used for `node`, `neovim`, `just`. It has plugins for `ripgrep`, `fd`, `jq`, `gh`, `pandoc`, `ffmpeg` and many more; pinning everything in `~/dotfiles/mise/.config/mise/config.toml` makes the toolchain reproducible cross-distro. Also resolves the brew-vs-apt-vs-aurora-cli "who installs `zoxide`" question — mise's `activate` mode prepends mise-managed bins to PATH, so its version wins regardless of what brew or apt also installed.
 2. **`install.sh` (this repo)** — for tools without a mise plugin or where we want full control of the binary, follow the `7zz`/`bw` pattern: pull the upstream GitHub release into `~/.local/bin`. Good fit for `keychain` if no mise plugin emerges.
-3. **`apt` (residual)** — keep only for things that genuinely need to be system-installed (e.g. `zsh`, `stow`, `build-essential`, `xz-utils`, `curl`). These should shrink to the minimum a fresh box needs to bootstrap the rest.
+3. **`apt`/`brew` (residual)** — keep only for things that genuinely need to be system-installed (e.g. `zsh`, `stow`, `build-essential`, `xz-utils`, `curl`). These should shrink to the minimum a fresh box needs to bootstrap the rest.
 
-No timeline; this is a north star for incremental moves, not a single migration. Each transition should land independently, with the apt step removed from the README's bootstrap sequence in the same change.
+No timeline; this is a north star for incremental moves, not a single migration. Each transition should land independently, with the apt/brew step removed from the README's bootstrap sequence in the same change.

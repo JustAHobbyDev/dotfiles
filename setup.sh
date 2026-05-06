@@ -4,7 +4,8 @@
 #   curl -LsSf https://raw.githubusercontent.com/JustAHobbyDev/dotfiles/main/setup.sh | bash
 #
 # Idempotent: re-running skips phases whose effect is already in place.
-# Apt-aware: on Debian/Ubuntu runs sudo apt steps; elsewhere appends them
+# Distro-aware: dispatches on apt (Debian/Ubuntu) or brew (Aurora Linux,
+# macOS-style); on hosts with neither, the system-package install moves
 # to the final next-steps checklist.
 
 set -euo pipefail
@@ -12,7 +13,8 @@ set -euo pipefail
 REPO_URL="${DOTFILES_REPO:-https://github.com/JustAHobbyDev/dotfiles}"
 DOTFILES_DIR="${DOTFILES_DIR:-$HOME/dotfiles}"
 HAS_APT=0
-NEXT_STEPS=()        # extra manual items collected when apt is unavailable
+HAS_BREW=0
+NEXT_STEPS=()        # extra manual items collected when no system package manager is available
 
 # ── output helpers ─────────────────────────────────────────────────────
 bold()   { printf '\033[1m%s\033[0m\n' "$*"; }
@@ -32,23 +34,36 @@ detect_platform() {
     if command -v apt >/dev/null 2>&1; then
         HAS_APT=1
         ok "apt available — will run apt phases"
-    else
-        skip "no apt — apt phases will move to the next-steps checklist"
+    fi
+    if command -v brew >/dev/null 2>&1; then
+        HAS_BREW=1
+        ok "brew available — will run brew phases"
+    fi
+    if [ "$HAS_APT" -eq 0 ] && [ "$HAS_BREW" -eq 0 ]; then
+        skip "no apt or brew — system-package phases will move to the next-steps checklist"
     fi
 }
 
-install_apt_prereqs() {
+install_system_prereqs() {
     step "Installing base packages"
-    local pkgs="zsh stow tmux ripgrep curl git build-essential jq fd-find pandoc ffmpeg xz-utils keychain pinentry-curses"
-    if [ "$HAS_APT" -ne 1 ]; then
-        NEXT_STEPS+=("Install via your distro's package manager: $pkgs")
-        skip "no apt — added to next-steps"
-        return
+    local apt_pkgs="zsh stow tmux ripgrep curl git build-essential jq fd-find pandoc ffmpeg xz-utils keychain pinentry-curses"
+    # Brew list omits ripgrep/fd/gh/zoxide because Aurora's `ujust aurora-cli`
+    # already installs them (see README "Aurora Linux" prereq). Also omits
+    # zsh/curl/git/build-essential — Aurora ships those in its base image.
+    local brew_pkgs="stow tmux jq pandoc ffmpeg keychain xz pinentry"
+    if [ "$HAS_APT" -eq 1 ]; then
+        sudo apt update
+        # shellcheck disable=SC2086
+        sudo apt install -y $apt_pkgs
+        ok "base packages installed via apt"
+    elif [ "$HAS_BREW" -eq 1 ]; then
+        # shellcheck disable=SC2086
+        brew install $brew_pkgs
+        ok "base packages installed via brew"
+    else
+        NEXT_STEPS+=("Install via your distro's package manager: $apt_pkgs")
+        skip "no apt or brew — added to next-steps"
     fi
-    sudo apt update
-    # shellcheck disable=SC2086
-    sudo apt install -y $pkgs
-    ok "base packages installed"
 }
 
 install_omz() {
@@ -141,6 +156,11 @@ mise_install_pinned() {
     ok "toolchains installed"
 }
 
+# Kept even after the brew dispatch above: this function early-returns when
+# `gh` is already on PATH, so it's a silent no-op on Aurora (where
+# `ujust aurora-cli` has already installed gh) and on macOS (where brew
+# installed it). Removing the apt path would break the Debian/Ubuntu
+# fallback for no functional gain.
 install_gh_apt_repo() {
     step "Installing gh (GitHub CLI)"
     if command -v gh >/dev/null 2>&1; then
@@ -219,7 +239,7 @@ print_next_steps() {
 
 CHECKLIST
     if [ "${#NEXT_STEPS[@]}" -gt 0 ]; then
-        echo "    4) Apt-equivalent installs for your distro:"
+        echo "    4) Manual installs your distro needs (no apt/brew detected):"
         for s in "${NEXT_STEPS[@]}"; do
             echo "       • $s"
         done
@@ -236,7 +256,7 @@ VERIFY
 main() {
     bold "Bootstrapping dotfiles from $REPO_URL"
     detect_platform
-    install_apt_prereqs
+    install_system_prereqs
     install_omz
     install_omz_plugins
     install_mise
