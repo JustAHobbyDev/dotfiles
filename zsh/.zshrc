@@ -156,7 +156,12 @@ NEXT
 
 alias clip='iconv -f UTF-8 -t UTF-16LE | clip.exe'
 
+# DOTFILES: honor the env var if already exported, otherwise derive it
+# from this file's path. %x is zsh's "currently executing script" prompt
+# expansion — $0 won't work here because zsh sets it to the shell name
+# during startup, not to .zshrc.
+export DOTFILES="${DOTFILES:-${${(%):-%x}:A:h:h}}"
+
 # zoxide — provides `z` / `zi`. Static init script (a snapshot of
 # `zoxide init zsh`) lives outside the stow tree to keep $HOME tidy.
-# Resolved via .zshrc's own location so it works regardless of PWD.
-[ -f "${0:A:h:h}/lib/zoxide.sh" ] && source "${0:A:h:h}/lib/zoxide.sh"
+[ -f "$DOTFILES/lib/zoxide.sh" ] && source "$DOTFILES/lib/zoxide.sh"
