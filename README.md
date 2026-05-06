@@ -159,7 +159,16 @@ rbw-setup && rbw login && rbw unlock
 gh auth login
 ```
 
-### 5. Re-clone project repos, then drop their .env files in
+### 5. Install Claude Code
+
+The official installer is self-contained — no node/npm dependency, auto-updates in place.
+
+```
+curl -fsSL https://claude.ai/install.sh | bash
+claude     # first run opens an interactive login flow
+```
+
+### 6. Re-clone project repos, then drop their .env files in
 
 Clone first — `git clone` refuses a non-empty target — then extract.
 
@@ -174,18 +183,18 @@ chmod 600 ~/game_asset_generator/.env ~/kalshi/kalshi-temp-edge/.env
 # kalshi-15m-btc-pipeline has no transferred .env — populate from its .env.example
 ```
 
-### 6. Verify
+### 7. Verify
 
 ```
 exec zsh
-command -v rg fd gh zoxide tmux stow jq mise uv      # tools
-git config --get user.email                          # identity
-ssh-add -L                                           # keychain has the signing key
-bw status                                            # "unlocked"
-( cd ~/dotfiles && git log --show-signature -1 )     # signed-commit verification works
+command -v rg fd gh zoxide tmux stow jq mise uv claude   # tools
+git config --get user.email                              # identity
+ssh-add -L                                               # keychain has the signing key
+bw status                                                # "unlocked"
+( cd ~/dotfiles && git log --show-signature -1 )         # signed-commit verification works
 ```
 
-### 7. Revoke the Bitwarden Sends
+### 8. Revoke the Bitwarden Sends
 
 Once everything's verified, revoke both Sends from the source machine (or from web vault) so the links can't be replayed.
 
