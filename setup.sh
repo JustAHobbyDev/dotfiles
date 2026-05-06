@@ -66,6 +66,80 @@ install_system_prereqs() {
     fi
 }
 
+# Stow fallback: when apt/brew aren't available (or didn't ship stow),
+# build it from the upstream GNU tarball into ~/.local. bootstrap.sh
+# can't run without stow, so this is the last line of defense before
+# the bootstrap phase. Verifies the .sig against the GNU keyring, so
+# needs gpg + perl + make in the base image — true on Aurora and most
+# distros.
+install_stow_fallback() {
+    step "Checking stow availability"
+    if command -v stow >/dev/null 2>&1; then
+        skip "stow already on PATH at $(command -v stow)"
+        return
+    fi
+    if [ -x "$HOME/.local/bin/stow" ]; then
+        skip "stow already installed at ~/.local/bin/stow"
+        return
+    fi
+
+    local version="${STOW_VERSION:-2.4.1}"
+    local url="https://ftp.gnu.org/gnu/stow/stow-${version}.tar.gz"
+    local sig_url="${url}.sig"
+    local keyring_url="https://ftp.gnu.org/gnu/gnu-keyring.gpg"
+
+    local missing=()
+    for cmd in perl make gpg; do
+        command -v "$cmd" >/dev/null 2>&1 || missing+=("$cmd")
+    done
+    if [ "${#missing[@]}" -gt 0 ]; then
+        NEXT_STEPS+=("Install stow manually (missing build/verify prereqs: ${missing[*]}): $url")
+        skip "missing ${missing[*]} — added to next-steps"
+        return
+    fi
+
+    note "no stow on PATH — building $version from $url (signature-verified)"
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    trap "rm -rf '$tmpdir'" RETURN
+
+    if ! curl -fsSL -o "$tmpdir/stow.tar.gz" "$url"; then
+        echo "ERROR: stow download failed from $url" >&2
+        return 1
+    fi
+    if ! curl -fsSL -o "$tmpdir/stow.tar.gz.sig" "$sig_url"; then
+        echo "ERROR: stow signature download failed from $sig_url" >&2
+        return 1
+    fi
+    if ! curl -fsSL -o "$tmpdir/gnu-keyring.gpg" "$keyring_url"; then
+        echo "ERROR: GNU keyring download failed from $keyring_url" >&2
+        return 1
+    fi
+
+    # Isolate gpg state so verification doesn't touch the user's keyring.
+    mkdir -p "$tmpdir/gnupg"
+    chmod 700 "$tmpdir/gnupg"
+    if ! GNUPGHOME="$tmpdir/gnupg" gpg --quiet --no-default-keyring \
+            --keyring "$tmpdir/gnu-keyring.gpg" \
+            --verify "$tmpdir/stow.tar.gz.sig" "$tmpdir/stow.tar.gz"; then
+        echo "ERROR: stow signature verification failed — refusing to install" >&2
+        return 1
+    fi
+    ok "signature verified against GNU keyring"
+
+    if ! tar -xzf "$tmpdir/stow.tar.gz" -C "$tmpdir"; then
+        echo "ERROR: stow tar extraction failed" >&2
+        return 1
+    fi
+    (
+        cd "$tmpdir/stow-${version}"
+        ./configure --prefix="$HOME/.local" >/dev/null
+        make >/dev/null
+        make install >/dev/null
+    )
+    ok "stow $version installed to ~/.local/bin/stow"
+}
+
 install_omz() {
     step "Installing oh-my-zsh"
     if [ -d "$HOME/.oh-my-zsh" ]; then
@@ -142,7 +216,8 @@ backup_pre_stow() {
 
 run_bootstrap() {
     step "Running bootstrap.sh (stow + install.sh)"
-    ( cd "$DOTFILES_DIR" && ./bootstrap.sh )
+    # Prepend ~/.local/bin so a fallback-installed stow is on PATH for bootstrap.sh.
+    ( cd "$DOTFILES_DIR" && PATH="$HOME/.local/bin:$PATH" ./bootstrap.sh )
     ok "bootstrap done"
 }
 
@@ -257,6 +332,7 @@ main() {
     bold "Bootstrapping dotfiles from $REPO_URL"
     detect_platform
     install_system_prereqs
+    install_stow_fallback
     install_omz
     install_omz_plugins
     install_mise
