@@ -83,8 +83,10 @@ install_stow_fallback() {
         return
     fi
 
-    local version="${STOW_VERSION:-2.4.1}"
-    local url="https://ftp.gnu.org/gnu/stow/stow-${version}.tar.gz"
+    # Default to GNU's `-latest` alias; honor STOW_VERSION for pinning.
+    local slug="${STOW_VERSION:+stow-${STOW_VERSION}}"
+    slug="${slug:-stow-latest}"
+    local url="https://ftp.gnu.org/gnu/stow/${slug}.tar.gz"
     local sig_url="${url}.sig"
     local keyring_url="https://ftp.gnu.org/gnu/gnu-keyring.gpg"
 
@@ -98,7 +100,7 @@ install_stow_fallback() {
         return
     fi
 
-    note "no stow on PATH — building $version from $url (signature-verified)"
+    note "no stow on PATH — building from $url (signature-verified)"
     local tmpdir
     tmpdir=$(mktemp -d)
     trap "rm -rf '$tmpdir'" RETURN
@@ -127,17 +129,25 @@ install_stow_fallback() {
     fi
     ok "signature verified against GNU keyring"
 
+    # Resolve the actual version from the tarball's top-level directory
+    # (e.g. "stow-2.4.1/") — `-latest` is a symlink to the current release.
+    local extracted_dir
+    extracted_dir=$(tar -tzf "$tmpdir/stow.tar.gz" | head -1 | cut -d/ -f1)
+    if [ -z "$extracted_dir" ]; then
+        echo "ERROR: could not determine stow tarball top-level directory" >&2
+        return 1
+    fi
     if ! tar -xzf "$tmpdir/stow.tar.gz" -C "$tmpdir"; then
         echo "ERROR: stow tar extraction failed" >&2
         return 1
     fi
     (
-        cd "$tmpdir/stow-${version}"
+        cd "$tmpdir/$extracted_dir"
         ./configure --prefix="$HOME/.local" >/dev/null
         make >/dev/null
         make install >/dev/null
     )
-    ok "stow $version installed to ~/.local/bin/stow"
+    ok "$extracted_dir installed to ~/.local/bin/stow"
 }
 
 install_omz() {
