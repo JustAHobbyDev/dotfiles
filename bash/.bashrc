@@ -31,3 +31,9 @@ test -f /usr/share/ublue-os/bling/bling.sh && source /usr/share/ublue-os/bling/b
 eval "$(fzf --bash)"
 
 export MOZ_ENABLE_WAYLAND=1
+
+# DOTFILES: derive from this file's resolved path if not already set.
+export DOTFILES="${DOTFILES:-$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)}"
+
+# Shared shell helpers (bws, rbw-setup); also sourced by zsh/.zshrc.
+[ -f "$DOTFILES/lib/secrets.sh" ] && source "$DOTFILES/lib/secrets.sh"
