@@ -35,5 +35,6 @@ export MOZ_ENABLE_WAYLAND=1
 # DOTFILES: derive from this file's resolved path if not already set.
 export DOTFILES="${DOTFILES:-$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)}"
 
-# Shared shell helpers (bws, rbw-setup); also sourced by zsh/.zshrc.
-[ -f "$DOTFILES/lib/secrets.sh" ] && source "$DOTFILES/lib/secrets.sh"
+# Shared shell helpers; also sourced by zsh/.zshrc.
+[ -f "$DOTFILES/lib/keychain.sh" ] && source "$DOTFILES/lib/keychain.sh"
+[ -f "$DOTFILES/lib/secrets.sh"  ] && source "$DOTFILES/lib/secrets.sh"
