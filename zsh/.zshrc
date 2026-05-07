@@ -23,8 +23,7 @@ eval "$(mise activate zsh)"
 export DOTFILES="${DOTFILES:-${${(%):-%x}:A:h:h}}"
 
 # Shared shell helpers; also sourced by bash/.bashrc.
-[ -f "$DOTFILES/lib/keychain.sh" ] && source "$DOTFILES/lib/keychain.sh"
-[ -f "$DOTFILES/lib/secrets.sh"  ] && source "$DOTFILES/lib/secrets.sh"
+[ -f "$DOTFILES/lib/secrets.sh" ] && source "$DOTFILES/lib/secrets.sh"
 
 # zoxide — provides `z` / `zi`. Static init script (a snapshot of
 # `zoxide init zsh`) lives outside the stow tree to keep $HOME tidy.

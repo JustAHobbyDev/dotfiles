@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Add SSH signing key to systemd ssh-agent
+Comment=Loads ~/.ssh/id_ed25519_signing into the user's ssh-agent at session start. Passphrase comes from KWallet via ksshaskpass.
+Exec=sh -c 'SSH_ASKPASS=/usr/bin/ksshaskpass SSH_ASKPASS_REQUIRE=force ssh-add ~/.ssh/id_ed25519_signing < /dev/null'
+OnlyShowIn=KDE;
+X-KDE-AutostartScript=true
+NoDisplay=true
