@@ -2,12 +2,12 @@
 
 # Source global definitions
 if [ -f /etc/bashrc ]; then
-    . /etc/bashrc
+  . /etc/bashrc
 fi
 
 # User specific environment
 if ! [[ "$PATH" =~ "$HOME/.local/bin:$HOME/bin:" ]]; then
-    PATH="$HOME/.local/bin:$HOME/bin:$PATH"
+  PATH="$HOME/.local/bin:$HOME/bin:$PATH"
 fi
 export PATH
 
@@ -16,11 +16,11 @@ export PATH
 
 # User specific aliases and functions
 if [ -d ~/.bashrc.d ]; then
-    for rc in ~/.bashrc.d/*; do
-        if [ -f "$rc" ]; then
-            . "$rc"
-        fi
-    done
+  for rc in ~/.bashrc.d/*; do
+    if [ -f "$rc" ]; then
+      . "$rc"
+    fi
+  done
 fi
 unset rc
 ### bling.sh source start
@@ -37,3 +37,9 @@ export DOTFILES="${DOTFILES:-$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")
 
 # Shared shell helpers; also sourced by zsh/.zshrc.
 [ -f "$DOTFILES/lib/secrets.sh" ] && source "$DOTFILES/lib/secrets.sh"
+
+### aliases
+alias l='eza -lAh --git --git-repos --hyperlink --icons=auto --group-directories-first'
+
+source ~/.config/nvims/nvim_appnames
+alias lv='LazyVim'
